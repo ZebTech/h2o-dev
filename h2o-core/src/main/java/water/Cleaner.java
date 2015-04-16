@@ -140,9 +140,13 @@ class Cleaner extends Thread {
           continue;             // Too young
         }
 
+        // CNC - Disabled all swapping, EXCEPT of Chunks.  Too many POJOs are
+        // concurrently modified - and swapping out saves one "view" of that
+        // POJO.  A later swap-in wipes out any changes made in-the-middle.
+
         // Should I write this value out to disk?
         // Should I further force it from memory?
-        if( !val.isPersisted() && !diskFull && (force || (lazyPersist() && lazy_clean(key)))) {
+        if( isChunk && !val.isPersisted() && !diskFull && lazyPersist() ) {//(force || (lazyPersist() && lazy_clean(key)))) {
           try {
             val.storePersist(); // Write to disk
             if( m == null ) m = val.rawMem();
@@ -158,17 +162,17 @@ class Cleaner extends Thread {
           }
         }
         // And, under pressure, free all
-        if( force && val.isPersisted() ) {
+        if( isChunk && force && val.isPersisted() ) {
           val.freeMem ();  if( m != null ) freed += val._max;  m = null;
           val.freePOJO();  if( p != null ) freed += val._max;  p = null;
           if( isChunk ) freed -= val._max; // Double-counted freed mem for Chunks since val._pojo._mem & val._mem are the same.
         }
         // If we have both forms, toss the byte[] form - can be had by
         // serializing again.
-        if( m != null && p != null && !isChunk ) {
-          val.freeMem();
-          freed += val._max;
-        }
+        //if( m != null && p != null && !isChunk ) {
+        //  val.freeMem();
+        //  freed += val._max;
+        //}
       }
       // For testing thread
       _did_sweep = true;
